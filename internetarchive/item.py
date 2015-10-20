@@ -28,7 +28,9 @@ def mk_url(protocol, identifier, key):
 
     url = u'{base_url}/{key}'.format(
             base_url=base_url, 
-            key=urllib.parse.quote(key.encode('utf-8')))
+            key=urllib.parse.quote(key))
+
+    url = url.encode('utf-8')
 
     return url
 
@@ -564,7 +566,7 @@ class Item(object):
                     os.remove(body.name)
                 return response
             except HTTPError as exc:
-                error_msg = (' error uploading {0} to {1}, '
+                error_msg = (u' error uploading {0} to {1}, '
                              '{2}'.format(key, self.identifier, exc))
                 log.error(error_msg)
                 if verbose:
