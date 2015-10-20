@@ -18,6 +18,20 @@ from . import __version__, session, iarequest, utils
 
 log = logging.getLogger(__name__)
 
+# mk_url()
+# ____________________________________________________________________________________
+def mk_url(protocol, identifier, key):
+
+    base_url = u'{protocol}//s3.us.archive.org/{identifier}'.format(
+            protocol=protocol, 
+            identifier=identifier)
+
+    url = u'{base_url}/{key}'.format(
+            base_url=base_url, 
+            key=urllib.parse.quote(key.encode('utf-8')))
+
+    return url
+
 
 # Item class
 # ________________________________________________________________________________________
@@ -119,7 +133,8 @@ class Item(object):
         :returns: Metadat API response.
 
         """
-        url = '{protocol}//archive.org/metadata/{identifier}'.format(**self.__dict__)
+        # mk_url?
+        url = u'{protocol}//archive.org/metadata/{identifier}'.format(**self.__dict__)
         try:
             resp = self.http_session.get(url, timeout=metadata_timeout)
             resp.raise_for_status()
@@ -448,14 +463,14 @@ class Item(object):
             headers['x-archive-size-hint'] = size
 
         key = body.name.split('/')[-1] if key is None else key
-        base_url = '{protocol}//s3.us.archive.org/{identifier}'.format(**self.__dict__)
-        url = '{base_url}/{key}'.format(base_url=base_url, key=urllib.parse.quote(key))
+
+        self.url = mk_url(self.protocol, self.identifier, key)
 
         # Skip based on checksum.
         md5_sum = utils.get_md5(body)
         ia_file = self.get_file(key)
         if (checksum) and (not self.tasks) and (ia_file) and (ia_file.md5 == md5_sum):
-            log.info('{f} already exists: {u}'.format(f=key, u=url))
+            log.info('{f} already exists: {u}'.format(f=key, u=self.url))
             if verbose:
                 sys.stdout.write(' {f} already exists, skipping.\n'.format(f=key))
             if delete:
@@ -497,7 +512,7 @@ class Item(object):
 
             request = iarequest.S3Request(
                 method='PUT',
-                url=url,
+                url=self.url,
                 headers=headers,
                 data=data,
                 metadata=metadata,
@@ -539,7 +554,7 @@ class Item(object):
                             log.info('maximum retries exceeded, upload failed.')
                         break
                 response.raise_for_status()
-                log.info('uploaded {f} to {u}'.format(f=key, u=url))
+                log.info('uploaded {f} to {u}'.format(f=key, u=self.url))
                 if delete and response.status_code == 200:
                     log.info(
                         '{f} successfully uploaded to '
@@ -693,9 +708,7 @@ class File(object):
             setattr(self, key, _file[key])
         self.mtime = float(self.mtime) if self.mtime else 0
         self.size = int(self.size) if self.size  else 0
-        base_url = '{protocol}//archive.org/download/{identifier}'.format(**item.__dict__)
-        self.url = '{base_url}/{name}'.format(base_url=base_url,
-                                              name=urllib.parse.quote(name.encode('utf-8')))
+        self.url = mk_url(item.protocol, item.identifier, name)
 
     # __repr__()
     # ____________________________________________________________________________________
@@ -801,6 +814,7 @@ class File(object):
         :param cascade_delete: Also deletes files derived from the file,
                                and files the file was derived from.
         """
+        # mk_url?
         url = 'http://s3.us.archive.org/{0}/{1}'.format(self.identifier,
                                                         self.name.encode('utf-8'))
         access_key = self._item.session.access_key if not access_key else access_key
