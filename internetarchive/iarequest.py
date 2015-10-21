@@ -115,7 +115,7 @@ class S3PreparedRequest(requests.models.PreparedRequest):
                     continue
                 header_key = 'x-archive-meta{0:02d}-{1}'.format(i, meta_key)
                 if (isinstance(value, six.string_types) and needs_quote(value)):
-                    value = 'uri({0})'.format(urllib.parse.quote(value))
+                    value = u'uri({0})'.format(urllib.parse.quote(value.encode('utf-8')))
                 # because rfc822 http headers disallow _ in names, IA-S3 will
                 # translate two hyphens in a row (--) into an underscore (_).
                 header_key = header_key.replace('_', '--')
