@@ -28,7 +28,7 @@ def mk_url(protocol, identifier, key):
 
     url = u'{base_url}/{key}'.format(
             base_url=base_url, 
-            key=urllib.parse.quote(key))
+            key=urllib.parse.quote(key.encode('utf-8')))
 
     url = url.encode('utf-8')
 
@@ -340,7 +340,7 @@ class Item(object):
         secret_key = self.session.secret_key if not secret_key else secret_key
         target = 'metadata' if target is None else target
 
-        url = '{protocol}//archive.org/metadata/{identifier}'.format(**self.__dict__)
+        url = u'{protocol}//archive.org/metadata/{identifier}'.format(**self.__dict__)
         request = iarequest.MetadataRequest(
             url=url,
             metadata=metadata,
@@ -507,7 +507,7 @@ class Item(object):
                                                       label=' uploading {f}: '.format(f=key))
                     data = utils.IterableToFileAdapter(progress_generator, size)
                 except:
-                    sys.stdout.write(' uploading {f}: '.format(f=key))
+                    sys.stdout.write(u' uploading {f}: '.format(f=key))
                     data = body
             else:
                 data = body
@@ -556,16 +556,17 @@ class Item(object):
                             log.info('maximum retries exceeded, upload failed.')
                         break
                 response.raise_for_status()
-                log.info('uploaded {f} to {u}'.format(f=key, u=self.url))
+                log.info(u'uploaded {f} to {u}'.format(f=key, u=self.url))
                 if delete and response.status_code == 200:
                     log.info(
-                        '{f} successfully uploaded to '
+                        u'{f} successfully uploaded to '
                         'https://archive.org/download/{i}/{f} and verified, deleting '
                         'local copy'.format(i=self.identifier, f=key)
                     )
                     os.remove(body.name)
                 return response
             except HTTPError as exc:
+                import code; code.interact(local=locals())
                 error_msg = (u' error uploading {0} to {1}, '
                              '{2}'.format(key, self.identifier, exc))
                 log.error(error_msg)
