@@ -4,6 +4,7 @@ from fnmatch import fnmatch
 import logging
 import time
 from datetime import datetime
+import unicodedata
 
 import requests.sessions
 from requests.adapters import HTTPAdapter
@@ -21,6 +22,9 @@ log = logging.getLogger(__name__)
 # mk_url()
 # ____________________________________________________________________________________
 def mk_url(protocol, identifier, key):
+    """
+    Constructs the URL of an item.
+    """
 
     base_url = u'{protocol}//s3.us.archive.org/{identifier}'.format(
             protocol=protocol, 
@@ -28,9 +32,7 @@ def mk_url(protocol, identifier, key):
 
     url = u'{base_url}/{key}'.format(
             base_url=base_url, 
-            key=urllib.parse.quote(key.encode('utf-8')))
-
-    url = url.encode('utf-8')
+            key=key)
 
     return url
 
@@ -96,7 +98,11 @@ class Item(object):
         max_retries_adapter = HTTPAdapter(max_retries=max_retries)
         self.http_session.mount('{0}//'.format(self.protocol), max_retries_adapter)
         self.http_session.cookies = self.session.cookies
-        self.identifier = identifier
+
+        # convert to "basic ASCII characters" 
+        # http://archive.org/about/faqs.php#1099 
+        self.identifier = unicodedata.normalize('NFD',
+                identifier).encode('ascii', 'ignore')
 
         # Default empty attributes.
         self.metadata = {}
@@ -464,7 +470,12 @@ class Item(object):
         if not headers.get('x-archive-size-hint'):
             headers['x-archive-size-hint'] = size
 
-        key = body.name.split('/')[-1] if key is None else key
+        # get the filename (no path)
+        key = os.path.basename(body.name) if key is None else key
+
+        # convert to "basic ASCII characters" 
+        # http://archive.org/about/faqs.php#1099      
+        key = unicodedata.normalize('NFD', key).encode('ascii', 'ignore')
 
         self.url = mk_url(self.protocol, self.identifier, key)
 
